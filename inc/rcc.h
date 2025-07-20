@@ -126,4 +126,9 @@ void rcc_i2c_clock_enable(uint8_t i2c_number);
  */
 void rcc_tim_clock_enable(uint8_t timer_number);
 
+/**
+ * @brief Enables the clock for ADC peripheral.
+ */
+void rcc_adc_clock_enable(void);
+
 #endif

@@ -43,6 +43,15 @@ typedef enum {
 void exti_gpio_init(gpio_t *GPIOx, uint8_t pin, gpio_pupd_t pupd, exti_trigger_t trigger);
 
 /**
+ * @brief Helper function to get the correct NVIC IRQn for a given EXTI line.
+ * @param[in] pin The pin number (0-15).
+ * @return IRQn_Type The corresponding IRQ number for the pin.
+ */
+IRQn_t get_irqn_for_exti_line(uint8_t pin);
+
+void exti_clear_interrupt(uint8_t exti_line);
+
+/**
  * @brief Activa las interrupciones de UART.
  *
  * La función configura los registros para activar

@@ -1,11 +1,6 @@
 #include "exti.h"
 
-/**
- * @brief Helper function to get the correct NVIC IRQn for a given EXTI line.
- * @param[in] pin The pin number (0-15).
- * @return IRQn_Type The corresponding IRQ number for the pin.
- */
-static IRQn_t get_irqn_for_exti_line(uint8_t pin)
+IRQn_t get_irqn_for_exti_line(uint8_t pin)
 {
     if (pin == 0) return EXTI0_IRQn;
     if (pin == 1) return EXTI1_IRQn;
@@ -56,6 +51,11 @@ void exti_gpio_init(gpio_t *GPIOx, uint8_t pin, gpio_pupd_t pupd, exti_trigger_t
 
     // --- 4. Enable the corresponding IRQ in the NVIC ---
     nvic_irq_enable(get_irqn_for_exti_line(pin));
+}
+
+void exti_clear_interrupt(uint8_t exti_line)
+{
+    EXTI->PR1 = (1U << exti_line);
 }
 
 void usart_interrupt_enable(uint8_t USART)

@@ -4,7 +4,7 @@
 volatile bool g_button_pressed_flag = false;
 
 // --- Configurations ---
-const keypad_config_t keypad_config = {
+const keypad_config_t keypad_conf = {
     .row_port = {GPIOA, GPIOB, GPIOB, GPIOB},
     .row_pin  = {10, 3, 5, 4},
     .col_port = {GPIOB, GPIOA, GPIOA, GPIOC},
@@ -34,7 +34,7 @@ int main(void) {
 
     // 3. Initialize peripherals
     gpio_init(&heartbeat_config);
-    keypad_init(&keypad_config);
+    keypad_init(&keypad_conf);
     usart_init(&usart2_config, 16000000); // Use 80MHz clock
     
     // 4. Initialize the user button interrupt on PC13
@@ -51,24 +51,25 @@ int main(void) {
             gpio_toggle_pin(GPIOA, 5);
 
         // Task 1: Non-blocking Heartbeat LED
-        if (systick_getTick() - heartbeat_last_tick >= 500) {
+        if(systick_getTick() - heartbeat_last_tick >= 500) {
             heartbeat_last_tick = systick_getTick();
             gpio_toggle_pin(GPIOA, 5);
         }
 
         // Task 2: Process button press flag from ISR
-        if (g_button_pressed_flag) {
+        if(g_button_pressed_flag) {
             g_button_pressed_flag = false; // Clear flag
             usart_send_string(USART2, "Button Pressed\r\n");
         }
         
+        /*
         // Task 3: Check Keypad Buffer
-        keypad_scan();
-        if (keypad_read_key(&pressed_key)) {
+        if(keypad_read_key(&pressed_key)) {
             usart_send_string(USART2, "Key pressed: ");
             usart_send_char(USART2, pressed_key);
             usart_send_string(USART2, "\r\n");
         }
+        */
     }
     return 0;
 }
@@ -76,8 +77,20 @@ int main(void) {
 // NONeSAFE Interrupt Handler
 void EXTI15_10_IRQHandler(void)
 {
-    if (EXTI->PR1 & (1U << 13)) {
+    if(EXTI->PR1 & (1U << 13)) {
         EXTI->PR1 = (1U << 13); // Clear pending flag
         g_button_pressed_flag = true;
     }
+    if(EXTI->PR1 & (1U << 10))
+        keypad_irq_handler();
+}
+
+void EXTI9_5_IRQHandler(void)
+{
+    if(EXTI->PR1 & (1U << 9))
+        keypad_irq_handler();
+    if(EXTI->PR1 & (1U << 8))
+        keypad_irq_handler();
+    if(EXTI->PR1 & (1U << 7))
+        keypad_irq_handler();
 }

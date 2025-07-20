@@ -120,3 +120,8 @@ void rcc_tim_clock_enable(uint8_t timer_number)
 		case 17: RCC->APB2ENR |= (1U << 18); break;
 	}
 }
+
+void rcc_adc_clock_enable(void)
+{
+	RCC->AHB2ENR |= (1U << 13);
+}
