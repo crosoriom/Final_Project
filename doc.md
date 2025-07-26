@@ -88,18 +88,25 @@ Este diagrama ilustra el flujo de ejecución principal del firmware del STM32, d
 ```mermaid
 graph TD
     Start((Inicio)) --> InitHAL[Inicializar HAL y Reloj del Sistema]
-    InitHAL --> InitPeriphs[Inicializar Periféricos HAL (GPIO, UART, I2C, ADC, TIM)]
+    
+    %% CORRECCIÓN: Se ha añadido comillas dobles al texto del nodo para evitar errores de parseo.
+    InitHAL --> InitPeriphs["Inicializar Periféricos HAL (GPIO, UART, I2C, ADC, TIM)"]
+    
     InitPeriphs --> InitAppLayer[Inicializar Capa de Aplicación (room_control_init)]
     InitAppLayer --> StartInterrupts[Iniciar Interrupciones (UART Receive, EXTI)]
-    StartInterrupts --> Superloop{while(1)}
+    
+    %% CORRECCIÓN: Se ha añadido comillas dobles al texto del nodo.
+    StartInterrupts --> Superloop{"while(1)"}
 
     Superloop --> Heartbeat[Procesar Heartbeat LED]
-    Heartbeat --> KeypadPoll[ sondear teclado (keypad_poll)]
+    Heartbeat --> KeypadPoll[Sondear Teclado (keypad_poll)]
     KeypadPoll --> AppProcess[Llamar a room_control_process()]
     AppProcess --> Superloop
 
     subgraph "Proceso Asíncrono (Interrupciones)"
-        HardwareEvent(Evento de Hardware: UART RX / Botón) -- "Interrupción" --> ISR[Interrupt Service Routine (ISR)]
+        %% CORRECCIÓN: Se ha añadido comillas dobles al texto del nodo.
+        HardwareEvent("Evento de Hardware: UART RX / Botón") -- "Interrupción" --> ISR["Interrupt Service Routine (ISR)"]
+        
         ISR -- "Escribe en" --> RingBuffer((Buffer Circular))
         RingBuffer -- "Leído por" --> AppProcess
     end
