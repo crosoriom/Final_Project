@@ -99,9 +99,10 @@ graph TD
         Init_App --> Sub_Init_App_Details
         subgraph "Dentro de room_control_init"
             direction TB
-            Sub_Init_App_Details[Establecer estados iniciales (Puerta, Ventilador)] --> Sub_Init_PWM[Iniciar PWM del Ventilador (HAL_TIM_PWM_Start)]
-            Sub_Init_PWM --> Sub_Init_OLED[Inicializar Pantalla OLED (ssd1306_init)]
-            Sub_Init_OLED --> Sub_Init_ADC[Iniciar y Calibrar ADC (HAL_ADC_Start, HAL_ADCEx_Calibration_Start)]
+            %% CORRECCIÓN: Se añadieron comillas dobles a todos los nodos con paréntesis.
+            Sub_Init_App_Details["Establecer estados iniciales (Puerta, Ventilador)"] --> Sub_Init_PWM["Iniciar PWM del Ventilador (HAL_TIM_PWM_Start)"]
+            Sub_Init_PWM --> Sub_Init_OLED["Inicializar Pantalla OLED (ssd1306_init)"]
+            Sub_Init_OLED --> Sub_Init_ADC["Iniciar y Calibrar ADC (HAL_ADC_Start, HAL_ADCEx_Calibration_Start)"]
         end
         Sub_Init_App_Details --> End_Init_App
         End_Init_App --> Arm_Interrupts["Armar Interrupciones (HAL_UART_Receive_IT)"]
@@ -114,10 +115,11 @@ graph TD
     subgraph "Etapa 2: Superloop (Cíclico y No Bloqueante)"
         direction TB
         Superloop --> Task_Heartbeat{"¿Es tiempo del Heartbeat?"}
-        Task_Heartbeat -->|Sí| Action_ToggleLED[Alternar LED (HAL_GPIO_TogglePin)]
+        Task_Heartbeat -->|Sí| Action_ToggleLED["Alternar LED (HAL_GPIO_TogglePin)"]
         Task_Heartbeat -->|No| Task_Keypad
         Action_ToggleLED --> Task_Keypad
 
+        %% CORRECCIÓN: Se añadieron comillas dobles.
         Task_Keypad --> Action_PollKeypad["Sondear Teclado (keypad_get_key)"]
         Action_PollKeypad --> Decision_Key_Pressed{"¿Se presionó una tecla?"}
         Decision_Key_Pressed -->|Sí| Action_NotifyApp_Keypad["Notificar a la App (room_control_keypad_char_received)"]
@@ -145,12 +147,13 @@ graph TD
     %% Connection between main loop and interrupts
     subgraph "Dentro de room_control_process"
         direction TB
+        %% CORRECCIÓN: Se añadieron comillas dobles.
         Start_AppProcess("(Entrada a room_control_process)") --> Process_Timers{"¿Es tiempo de actualizar<br/>Temp/Display/Publish?"}
         Process_Timers -->|Sí| Action_UpdateSensors["Actualizar Sensores y Display"]
         Process_Timers -->|No| Process_Door
         Action_UpdateSensors --> Process_Door
         
-        Process_Door --> Action_UpdateDoor[Actualizar estado de la puerta (timer de desbloqueo temporal)]
+        Process_Door --> Action_UpdateDoor["Actualizar estado de la puerta (timer de desbloqueo temporal)"]
         Action_UpdateDoor --> Process_Buffers["Procesar Buffers de Datos (System y WiFi)"]
         Process_Buffers -- "Consume datos de" --> Data_Consumed((Ring Buffers))
         Process_Buffers --> End_AppProcess("(Salida)")
