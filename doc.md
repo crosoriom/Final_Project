@@ -87,29 +87,76 @@ Este diagrama ilustra el flujo de ejecución principal del firmware del STM32, d
 
 ```mermaid
 graph TD
-    Start((Inicio)) --> InitHAL[Inicializar HAL y Reloj del Sistema]
-    
-    %% CORRECCIÓN: Se ha añadido comillas dobles al texto del nodo para evitar errores de parseo.
-    InitHAL --> InitPeriphs["Inicializar Periféricos HAL (GPIO, UART, I2C, ADC, TIM)"]
-    
-    InitPeriphs --> InitAppLayer[Inicializar Capa de Aplicación (room_control_init)]
-    InitAppLayer --> StartInterrupts[Iniciar Interrupciones (UART Receive, EXTI)]
-    
-    %% CORRECCIÓN: Se ha añadido comillas dobles al texto del nodo.
-    StartInterrupts --> Superloop{"while(1)"}
-
-    Superloop --> Heartbeat[Procesar Heartbeat LED]
-    Heartbeat --> KeypadPoll[Sondear Teclado (keypad_poll)]
-    KeypadPoll --> AppProcess[Llamar a room_control_process()]
-    AppProcess --> Superloop
-
-    subgraph "Proceso Asíncrono (Interrupciones)"
-        %% CORRECCIÓN: Se ha añadido comillas dobles al texto del nodo.
-        HardwareEvent("Evento de Hardware: UART RX / Botón") -- "Interrupción" --> ISR["Interrupt Service Routine (ISR)"]
-        
-        ISR -- "Escribe en" --> RingBuffer((Buffer Circular))
-        RingBuffer -- "Leído por" --> AppProcess
+    %% =================================================================
+    %% STAGE 1: INITIALIZATION
+    %% =================================================================
+    subgraph "Etapa 1: Inicialización (Secuencial)"
+        direction TB
+        Start((Inicio)) --> Init_HAL["Inicializar HAL y Reloj del Sistema (SystemClock_Config)"]
+        Init_HAL --> Init_Periphs["Inicializar Periféricos HAL (generado por CubeMX: GPIO, UART, I2C, ADC, TIM)"]
+        Init_Periphs --> Init_Software["Inicializar Módulos de Software (Ring Buffers, Keypad)"]
+        Init_Software --> Init_App["Inicializar Capa de Aplicación (room_control_init)"]
+        Init_App --> Sub_Init_App_Details
+        subgraph "Dentro de room_control_init"
+            direction TB
+            Sub_Init_App_Details[Establecer estados iniciales (Puerta, Ventilador)] --> Sub_Init_PWM[Iniciar PWM del Ventilador (HAL_TIM_PWM_Start)]
+            Sub_Init_PWM --> Sub_Init_OLED[Inicializar Pantalla OLED (ssd1306_init)]
+            Sub_Init_OLED --> Sub_Init_ADC[Iniciar y Calibrar ADC (HAL_ADC_Start, HAL_ADCEx_Calibration_Start)]
+        end
+        Sub_Init_App_Details --> End_Init_App
+        End_Init_App --> Arm_Interrupts["Armar Interrupciones (HAL_UART_Receive_IT)"]
     end
+
+    %% =================================================================
+    %% STAGE 2: MAIN LOOP (SUPERLOOP)
+    %% =================================================================
+    Arm_Interrupts --> Superloop{"Bucle Principal: while(1)"}
+    subgraph "Etapa 2: Superloop (Cíclico y No Bloqueante)"
+        direction TB
+        Superloop --> Task_Heartbeat{"¿Es tiempo del Heartbeat?"}
+        Task_Heartbeat -->|Sí| Action_ToggleLED[Alternar LED (HAL_GPIO_TogglePin)]
+        Task_Heartbeat -->|No| Task_Keypad
+        Action_ToggleLED --> Task_Keypad
+
+        Task_Keypad --> Action_PollKeypad["Sondear Teclado (keypad_get_key)"]
+        Action_PollKeypad --> Decision_Key_Pressed{"¿Se presionó una tecla?"}
+        Decision_Key_Pressed -->|Sí| Action_NotifyApp_Keypad["Notificar a la App (room_control_keypad_char_received)"]
+        Decision_Key_Pressed -->|No| Task_AppProcess
+        Action_NotifyApp_Keypad --> Task_AppProcess
+
+        Task_AppProcess --> Action_AppProcess["Llamar a room_control_process()"]
+        Action_AppProcess --> Superloop
+    end
+    
+    %% =================================================================
+    %% STAGE 3: ASYNCHRONOUS INTERRUPTS
+    %% =================================================================
+    subgraph "Etapa 3: Manejo de Interrupciones (Asíncrono)"
+        direction LR
+        HW_Event("Evento de Hardware<br/>(Byte en UART, Botón presionado)") -- "Dispara Interrupción" --> HAL_ISR["Handler de Interrupción HAL (p.ej., USART2_IRQHandler)"]
+        HAL_ISR -- "Llama a" --> HAL_Callback["Callback de HAL<br/>(HAL_UART_RxCpltCallback, HAL_GPIO_EXTI_Callback)"]
+        subgraph "Dentro de los Callbacks"
+            HAL_Callback -- "Si es UART" --> Action_WriteBuffer["Escribir byte en Ring Buffer (ring_buffer_write)"]
+            HAL_Callback -- "Si es Botón" --> Action_NotifyApp_Button["Notificar a la App (room_control_button_pressed)"]
+        end
+        Action_WriteBuffer -.-> Data_Consumed
+    end
+    
+    %% Connection between main loop and interrupts
+    subgraph "Dentro de room_control_process"
+        direction TB
+        Start_AppProcess("(Entrada a room_control_process)") --> Process_Timers{"¿Es tiempo de actualizar<br/>Temp/Display/Publish?"}
+        Process_Timers -->|Sí| Action_UpdateSensors["Actualizar Sensores y Display"]
+        Process_Timers -->|No| Process_Door
+        Action_UpdateSensors --> Process_Door
+        
+        Process_Door --> Action_UpdateDoor[Actualizar estado de la puerta (timer de desbloqueo temporal)]
+        Action_UpdateDoor --> Process_Buffers["Procesar Buffers de Datos (System y WiFi)"]
+        Process_Buffers -- "Consume datos de" --> Data_Consumed((Ring Buffers))
+        Process_Buffers --> End_AppProcess("(Salida)")
+    end
+    
+    Action_AppProcess -- Contiene --> Start_AppProcess
 ```
 
 ## Requisitos de Hardware y Software
